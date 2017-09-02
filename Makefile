@@ -599,7 +599,8 @@ C_FLAGS += -DARM_MATH_CM4
 C_FLAGS += -include
 C_FLAGS += mbed_config.h
 
-CXX_FLAGS += -std=gnu++98
+#CXX_FLAGS += -std=gnu++98
+CXX_FLAGS += -std=c++11
 CXX_FLAGS += -fno-rtti
 CXX_FLAGS += -Wvla
 CXX_FLAGS += -DDEVICE_SPISLAVE=1
