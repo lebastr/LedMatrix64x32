@@ -23,18 +23,6 @@ struct Game {
     game_field[15][22] = 1;
     game_field[16][22] = 1;
     game_field[14][21] = 1;
-
-
-    // game_field[15][20] = 1;
-    // game_field[15][21] = 1;
-    // game_field[15][22] = 1;
-    // game_field[16][22] = 1;
-    // game_field[17][21] = 1;
-  
-  
-    // for(int y = 15; y < 45; y++) {
-    //   game_field[15][y] = 1;
-    // }
   }
   
   void step()
@@ -50,15 +38,15 @@ struct Game {
       for(uint16_t y0 = 0; y0 < 64; y0++) {
 	if(game_field[x0][y0] == 1) {
 	  x = x0 + 32;
-	  y = y0 + 64;
-	  neighbors[(x+1)%32][y%64] += 1;
-	  neighbors[(x+1)%32][(y+1)%64] += 1;
-	  neighbors[(x+1)%32][(y-1)%64] += 1;
-	  neighbors[x%32][(y+1)%64] += 1;
-	  neighbors[x%32][(y-1)%64] += 1;
-	  neighbors[(x-1)%32][y%64] += 1;
-	  neighbors[(x-1)%32][(y+1)%64] += 1;
-	  neighbors[(x-1)%32][(y-1)%64] += 1;
+	  y = y0 + 63;
+	  neighbors[(x+1)%32][y%63] += 1;
+	  neighbors[(x+1)%32][(y+1)%63] += 1;
+	  neighbors[(x+1)%32][(y-1)%63] += 1;
+	  neighbors[x%32][(y+1)%63] += 1;
+	  neighbors[x%32][(y-1)%63] += 1;
+	  neighbors[(x-1)%32][y%63] += 1;
+	  neighbors[(x-1)%32][(y+1)%63] += 1;
+	  neighbors[(x-1)%32][(y-1)%63] += 1;
 	}
       }
     }
@@ -86,14 +74,21 @@ struct Game {
 };
 
 Game game;
+Display display;
 
 int main() {
-  Display display;
   display.start();
 
   while(true) {
-    game.draw(&display);
-    wait_ms(10);
-    game.step();
+    for(int i = 0; i < 400; i++){
+      game.draw(&display);
+      wait_ms(10);
+      game.step();
+    }
+    game.game_field[10][10] = 1;
+    game.game_field[10][11] = 1;
+    game.game_field[10][12] = 1;
+    game.game_field[11][12] = 1;
+    game.game_field[12][11] = 1;
   }
 }
