@@ -3,17 +3,19 @@
 #include "display.h"
 
 struct Game {
-
+  const int width = 128;
+  const int height = 32;
+  
   std::vector<std::vector<uint8_t>> game_field;
   std::vector<std::vector<uint8_t>> neighbors;
 
   Game() {
-    game_field = std::vector<std::vector<uint8_t>> (32, std::vector<uint8_t>(64, 0));
-    neighbors  = std::vector<std::vector<uint8_t>> (32, std::vector<uint8_t>(64, 0));
+    game_field = std::vector<std::vector<uint8_t>> (height, std::vector<uint8_t>(width, 0));
+    neighbors  = std::vector<std::vector<uint8_t>> (height, std::vector<uint8_t>(width, 0));
    
 
-    for(int x = 0; x < 32; x++) {
-      for(int y = 0; y < 64; y++) {
+    for(int x = 0; x < height; x++) {
+      for(int y = 0; y < width; y++) {
 	game_field[x][y] = 0;
       }
     }  
@@ -28,31 +30,31 @@ struct Game {
   void step()
   {
     int x, y;
-    for(int x = 0; x < 32; x++) {
-      for(int y = 0; y < 64; y++) {
+    for(int x = 0; x < height; x++) {
+      for(int y = 0; y < width; y++) {
 	neighbors[x][y] = 0;
       }
     }
 
-    for(uint16_t x0 = 0; x0 < 32; x0++) {
-      for(uint16_t y0 = 0; y0 < 64; y0++) {
+    for(uint16_t x0 = 0; x0 < height; x0++) {
+      for(uint16_t y0 = 0; y0 < width; y0++) {
 	if(game_field[x0][y0] == 1) {
-	  x = x0 + 32;
-	  y = y0 + 63;
-	  neighbors[(x+1)%32][y%63] += 1;
-	  neighbors[(x+1)%32][(y+1)%63] += 1;
-	  neighbors[(x+1)%32][(y-1)%63] += 1;
-	  neighbors[x%32][(y+1)%63] += 1;
-	  neighbors[x%32][(y-1)%63] += 1;
-	  neighbors[(x-1)%32][y%63] += 1;
-	  neighbors[(x-1)%32][(y+1)%63] += 1;
-	  neighbors[(x-1)%32][(y-1)%63] += 1;
+	  x = x0 + height;
+	  y = y0 + width;
+	  neighbors[(x+1)%height][y%width] += 1;
+	  neighbors[(x+1)%height][(y+1)%width] += 1;
+	  neighbors[(x+1)%height][(y-1)%width] += 1;
+	  neighbors[x%height][(y+1)%width] += 1;
+	  neighbors[x%height][(y-1)%width] += 1;
+	  neighbors[(x-1)%height][y%width] += 1;
+	  neighbors[(x-1)%height][(y+1)%width] += 1;
+	  neighbors[(x-1)%height][(y-1)%width] += 1;
 	}
       }
     }
     
-    for(int x = 0; x < 32; x++) {
-      for(int y = 0; y < 64; y++) {
+    for(int x = 0; x < height; x++) {
+      for(int y = 0; y < width; y++) {
 	if(neighbors[x][y] == 3) {
 	  game_field[x][y] = 1;  
 	} else if (neighbors[x][y] == 2) {
@@ -65,16 +67,20 @@ struct Game {
   }
 
   void draw(Display *display) {
-    for(int x = 0; x < 32; x++) {
-      for(int y = 0; y < 64; y++) {
-	display->set_pixel(x,y,game_field[x][y]);
+    for(int x = 0; x < height; x++) {
+      for(int y = 0; y < width; y++) {
+	if(game_field[x][y] == 1){
+	  display->set_pixel(x,y,y%7 + 1);
+	} else {
+	  display->set_pixel(x,y,0);
+	}
       }
     }   
   }
 };
 
 Game game;
-Display display;
+Display display(128);
 
 int main() {
   display.start();

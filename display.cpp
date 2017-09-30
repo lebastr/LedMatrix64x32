@@ -4,26 +4,26 @@
 
 void Display::clear() {
   for(int j = 0; j < 32; j++) {
-    for(int i = 0; i < 64; i++) {
-      displayBitmap[j*64+i] = 0;
+    for(int i = 0; i < width; i++) {
+      displayBitmap[j*width+i] = 0;
     }
   }
 }
   
 void Display::set_pixel(int x, int y, uint8_t color) {
-  displayBitmap[64*x+y] = color;
+  displayBitmap[width*x+y] = color;
 }
 
 void Display::draw() {
   for(int x=0; x < 16; x++) {
-    for(int y = 0; y < 64; y++) {
-      uint8_t c = displayBitmap[64*x + y];
+    for(int y = 0; y < width; y++) {
+      uint8_t c = displayBitmap[width*x + y];
 
       R1_pin = c & 1;
       G1_pin = (c >> 1) & 1;
       B1_pin = (c >> 2) & 1;
 
-      c = displayBitmap[(x+16)*64 + y];
+      c = displayBitmap[(x+16)*width + y];
       R2_pin = c & 1;
       G2_pin = (c >> 1) & 1;
       B2_pin = (c >> 2) & 1;

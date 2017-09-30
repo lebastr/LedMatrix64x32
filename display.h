@@ -23,14 +23,16 @@ struct Display {
 
   const int delay_between_lines = 10; // us
   const int delay_between_frames = 1000; // us
+  const int width;
   
   std::vector<uint8_t> displayBitmap;
   
-  Display() : A_pin(D2), B_pin(D3), C_pin(D4), D_pin(D5), G1_pin(D9), 
+  Display(int w) : A_pin(D2), B_pin(D3), C_pin(D4), D_pin(D5), G1_pin(D9), 
 	      G2_pin(D10), R1_pin(D11), R2_pin(D12), B1_pin(D14), B2_pin(D15),
-	      S_pin(D8), L_pin(D6), E_pin(D7), abcd_pins{A_pin, B_pin, C_pin, D_pin}
+    S_pin(D8), L_pin(D6), E_pin(D7),
+    abcd_pins{A_pin, B_pin, C_pin, D_pin}, width(w)
   {
-    displayBitmap = std::vector<uint8_t>(32*64);
+    displayBitmap = std::vector<uint8_t>(32*width);
   };
 
   
