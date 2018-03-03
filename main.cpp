@@ -3,8 +3,8 @@
 #include "display.h"
 
 struct Game {
-  const int width = 128;
-  const int height = 32;
+  const int width = 63;
+  const int height = 64;
   
   std::vector<std::vector<uint8_t>> game_field;
   std::vector<std::vector<uint8_t>> neighbors;
@@ -85,12 +85,15 @@ Display display(128);
 int main() {
   display.start();
   while(true) {
-    for(int j = 0; j < 64; j++) {
-      for(int i = 0; i < 64; i++) {
-	display.set_pixel64x64(j,i,2);
-	wait_ms(10);
-	//	display.set_pixel64x64(j,i,0);
-      }
+    for(int i = 0; i < 400; i++){
+      game.draw(&display);
+      wait_ms(10);
+      game.step();
     }
+    game.game_field[10][10] = 1;
+    game.game_field[10][11] = 1;
+    game.game_field[10][12] = 1;
+    game.game_field[11][12] = 1;
+    game.game_field[12][11] = 1;
   }
 }
