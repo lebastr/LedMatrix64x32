@@ -28,7 +28,7 @@ struct Display {
   std::vector<uint8_t> displayBitmap;
   
   Display(int w) : A_pin(D2), B_pin(D3), C_pin(D4), D_pin(D5), G1_pin(D9), 
-	      G2_pin(D10), R1_pin(D11), R2_pin(D12), B1_pin(D14), B2_pin(D15),
+	      G2_pin(D10), R1_pin(D13), R2_pin(D12), B1_pin(D14), B2_pin(D15),
     S_pin(D8), L_pin(D6), E_pin(D7),
     abcd_pins{A_pin, B_pin, C_pin, D_pin}, width(w)
   {
@@ -38,7 +38,8 @@ struct Display {
   
   void clear();
   
-  void set_pixel(int x, int y, uint8_t color);
+  void __set_pixel__(int x, int y, uint8_t color);
+  void set_pixel64x64(int x, int y, uint8_t color);
 
   void draw();
   

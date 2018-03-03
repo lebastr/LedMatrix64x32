@@ -10,9 +10,20 @@ void Display::clear() {
   }
 }
   
-void Display::set_pixel(int x, int y, uint8_t color) {
+void Display::__set_pixel__(int x, int y, uint8_t color) {
   displayBitmap[width*x+y] = color;
 }
+
+void Display::set_pixel64x64(int x, int y, uint8_t color) {
+  if(x < 32) {
+    displayBitmap[width*x+y] = color;
+  } else {
+    y = 127 - y;
+    x = 63 - x;
+    displayBitmap[width*x+y] = color;
+  }
+}
+
 
 void Display::draw() {
   for(int x=0; x < 16; x++) {

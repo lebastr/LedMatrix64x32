@@ -70,9 +70,9 @@ struct Game {
     for(int x = 0; x < height; x++) {
       for(int y = 0; y < width; y++) {
 	if(game_field[x][y] == 1){
-	  display->set_pixel(x,y,y%7 + 1);
+	  display->set_pixel64x64(x,y,y%7 + 1);
 	} else {
-	  display->set_pixel(x,y,0);
+	  display->set_pixel64x64(x,y,0);
 	}
       }
     }   
@@ -85,10 +85,11 @@ Display display(128);
 int main() {
   display.start();
   while(true) {
-    for(int i = 0; i < 32; i++) {
-      for(int j = 0; j < 32; j++ ) {
-	display.set_pixel(i, j, 1);
+    for(int j = 0; j < 64; j++) {
+      for(int i = 0; i < 64; i++) {
+	display.set_pixel64x64(j,i,2);
 	wait_ms(10);
+	//	display.set_pixel64x64(j,i,0);
       }
     }
   }
