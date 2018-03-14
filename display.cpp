@@ -2,6 +2,8 @@
 #include "display.h"
 #include "mbed.h"
 
+
+
 void Display::clear() {
   for(int i = 0; i < displayBitmap.size(); i++) {
     displayBitmap[i] = 0;
@@ -27,22 +29,27 @@ void Display::set_pixel64x64(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
 
 
 void Display::draw() {
+  uint32_t out = 0x0;
+
   for(int i = 0; i < displayBitmap.size(); i++) {
     displayBitmap_temp[i] = displayBitmap[i];
   }
 
   for(int counter = 0; counter < 8; counter++) {
-    for(int x=0; x < 16; x++) {
-      for(int y = 0; y < width; y++) {
+    for(uint32_t x=0; x < 16; x++) {
+      for(uint32_t y = 0; y < width; y++) {
 	int index = 3*(width*x + y);
-	
+
+	out = display_port;
+	out &= ~(R1_pin | G1_pin | B1_pin | R2_pin | G2_pin | B2_pin);
+
 	uint8_t *r = &displayBitmap_temp[index];
 	uint8_t *g = &displayBitmap_temp[index+1];
 	uint8_t *b = &displayBitmap_temp[index+2];
 	
-	R1_pin = *r > 0 ? 1 : 0;
-	G1_pin = *g > 0 ? 1 : 0;
-	B1_pin = *b > 0 ? 1 : 0;
+	out |= *r > 0 ? R1_pin : 0x0;
+	out |= *g > 0 ? G1_pin : 0x0;
+	out |= *b > 0 ? B1_pin : 0x0;
 
 	*r >>= 1;
 	*g >>= 1;
@@ -54,34 +61,42 @@ void Display::draw() {
 	g = &displayBitmap_temp[index+1];
 	b = &displayBitmap_temp[index+2];
 
-	R2_pin = *r > 0 ? 1 : 0;
-	G2_pin = *g > 0 ? 1 : 0;
-	B2_pin = *b > 0 ? 1 : 0;
+	out |= *r > 0 ? R2_pin : 0x0;
+	out |= *g > 0 ? G2_pin : 0x0;
+	out |= *b > 0 ? B2_pin : 0x0;
 
 	*r >>= 1;
 	*g >>= 1;
 	*b >>= 1;
 
-	S_pin = 0;
-	S_pin = 1;
+	display_port = out;
+
+	out &= ~S_pin;
+	display_port = out;
+
+	out |= S_pin;
+	display_port = out;
       }
       
-      L_pin = 1;
-      L_pin = 0;
+      out |= L_pin;
+      display_port = out;
+
+      out &= ~L_pin;
+      display_port = out;
+
+      out &= ~0x3c;
+
+      out |= (x << 2);
+
+      display_port = out;
+
+      out &= ~E_pin;
+      display_port = out;
       
-      int pinState = 0;
-      for (int i=4; i>=0; i--)  {
-	if ( x & (1<<i) )
-	  pinState= 1;
-	else
-	  pinState= 0;
-	
-	abcd_pins[i] = pinState;
-      }
-      
-      E_pin = 0;
       wait_us(delay_between_lines);
-      E_pin = 1;
+
+      out |= E_pin;
+      display_port = out;
     }
   }
 }
@@ -94,7 +109,7 @@ static void display_thread_hook(Display *display) {
 }
 
 void Display::start() {
-  E_pin = 1;
+  display_port = display_port | E_pin;
   clear();
   thread.start(callback(display_thread_hook, this));
 }
