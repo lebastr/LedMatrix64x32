@@ -1,4 +1,5 @@
 #include "mbed.h"
+#include "rtos.h"
 #include <vector>
 
 struct Display {
@@ -21,25 +22,28 @@ struct Display {
   
   Thread thread;
 
-  const int delay_between_lines = 10; // us
+  const int delay_between_lines = 15; // us
   const int delay_between_frames = 1000; // us
-  const int width;
+  const int width = 128;
   
   std::vector<uint8_t> displayBitmap;
+  std::vector<uint8_t> displayBitmap_temp;
   
-  Display(int w) : A_pin(D2), B_pin(D3), C_pin(D4), D_pin(D5), G1_pin(D9), 
+  Display() : A_pin(D2), B_pin(D3), C_pin(D4), D_pin(D5), G1_pin(D9), 
 	      G2_pin(D10), R1_pin(D13), R2_pin(D12), B1_pin(D14), B2_pin(D15),
     S_pin(D8), L_pin(D6), E_pin(D7),
-    abcd_pins{A_pin, B_pin, C_pin, D_pin}, width(w)
+    abcd_pins{A_pin, B_pin, C_pin, D_pin}, thread(osPriorityRealtime)
+		   //    abcd_pins{A_pin, B_pin, C_pin, D_pin}, width(w)
   {
-    displayBitmap = std::vector<uint8_t>(32*width);
+    displayBitmap = std::vector<uint8_t>(3*32*width);
+    displayBitmap_temp = std::vector<uint8_t>(3*32*width);
   };
 
   
   void clear();
   
-  void __set_pixel__(int x, int y, uint8_t color);
-  void set_pixel64x64(int x, int y, uint8_t color);
+  void __set_pixel__(int x, int y, uint8_t r, uint8_t g, uint8_t b);
+  void set_pixel64x64(int x, int y, uint8_t r, uint8_t g, uint8_t b);
 
   void draw();
   

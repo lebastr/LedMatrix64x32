@@ -70,9 +70,9 @@ struct Game {
     for(int x = 0; x < height; x++) {
       for(int y = 0; y < width; y++) {
 	if(game_field[x][y] == 1){
-	  display->set_pixel64x64(x,y,y%7 + 1);
+	  //  display->set_pixel64x64(x,y,y%7 + 1);
 	} else {
-	  display->set_pixel64x64(x,y,0);
+	  //display->set_pixel64x64(x,y,0);
 	}
       }
     }   
@@ -80,20 +80,35 @@ struct Game {
 };
 
 Game game;
-Display display(128);
+Display display;
 
 int main() {
-  display.start();
+  int t = 0;
+  //  display.start();
+  display.clear();
   while(true) {
-    for(int i = 0; i < 400; i++){
-      game.draw(&display);
-      wait_ms(10);
-      game.step();
+    for(int j = 0; j < 64; j++){
+      for(int i = 0; i < 64; i++) {
+	display.set_pixel64x64(j,i, (t%80) / 10, 7 - (t%80) / 10 , 0);
+      }
     }
-    game.game_field[10][10] = 1;
-    game.game_field[10][11] = 1;
-    game.game_field[10][12] = 1;
-    game.game_field[11][12] = 1;
-    game.game_field[12][11] = 1;
+    display.draw();
+    //    wait_ms(10);
+    t += 1;
+    
+
+    //   for(int i = 0; i < 400; i++){
+  //     game.draw(&display);
+  //     wait_ms(10);
+  //     game.step();
+  //   }
+  //   game.game_field[10][10] = 1;
+  //   game.game_field[10][11] = 1;
+  //   game.game_field[10][12] = 1;
+  //   game.game_field[11][12] = 1;
+  //   game.game_field[12][11] = 1;
+  // }
+
   }
 }
+  
