@@ -84,11 +84,12 @@ Display display;
 
 int main() {
   int t = 0;
-  display.start();
-  //  display.clear();
+  // display.start();
+  display.clear();
   while(true) {
     for(int i = 0; i < 400; i++){
       game.draw(&display);
+      display.draw();
       //   wait_ms(10);
       game.step();
     }
