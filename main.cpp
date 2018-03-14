@@ -86,17 +86,23 @@ int main() {
   int t = 0;
   // display.start();
   display.clear();
-  while(true) {
-    for(int i = 0; i < 400; i++){
-      game.draw(&display);
-      display.draw();
-      //   wait_ms(10);
-      game.step();
+  for(int i = 0; i < 64; i++) {
+    for(int j = 0; j < 64; j++) {
+      display.set_pixel64x64(i,j,7,7,7);
     }
-    game.game_field[10][10] = 1;
-    game.game_field[10][11] = 1;
-    game.game_field[10][12] = 1;
-    game.game_field[11][12] = 1;
-    game.game_field[12][11] = 1;
+  }
+  while(true) {
+    display.draw();
+    // for(int i = 0; i < 400; i++){
+    //   game.draw(&display);
+    //   display.draw();
+    //   //   wait_ms(10);
+    //   game.step();
+    // }
+    // game.game_field[10][10] = 1;
+    // game.game_field[10][11] = 1;
+    // game.game_field[10][12] = 1;
+    // game.game_field[11][12] = 1;
+    // game.game_field[12][11] = 1;
   }
 }
