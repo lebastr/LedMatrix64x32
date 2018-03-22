@@ -1,108 +1,94 @@
 #include "mbed.h"
 #include <vector>
-#include "display.h"
+#include "rtos.h"
 
-struct Game {
-  const int width = 63;
-  const int height = 64;
-  
-  std::vector<std::vector<uint8_t>> game_field;
-  std::vector<std::vector<uint8_t>> neighbors;
+#define A_pin   0x00000004
+#define B_pin   0x00000008
+#define C_pin   0x00000010
+#define D_pin   0x00000020
+#define R1_pin  0x00000100
+#define G1_pin  0x00000080
+#define B1_pin  0x00000400
+#define R2_pin  0x00001000
+#define G2_pin  0x00004000
+#define B2_pin  0x00008000
+#define S_pin   0x00002000
+#define L_pin   0x00000800
+#define E_pin   0x00000200
 
-  Game() {
-    game_field = std::vector<std::vector<uint8_t>> (height, std::vector<uint8_t>(width, 0));
-    neighbors  = std::vector<std::vector<uint8_t>> (height, std::vector<uint8_t>(width, 0));
-   
+#define LightingTime  10  // us
+#define Width         4*64
+#define Height        16
+#define Tints         8   // TODO надо 8
 
-    for(int x = 0; x < height; x++) {
-      for(int y = 0; y < width; y++) {
-	game_field[x][y] = 0;
-      }
-    }  
 
-    game_field[15][20] = 1;
-    game_field[15][21] = 1;
-    game_field[15][22] = 1;
-    game_field[16][22] = 1;
-    game_field[14][21] = 1;
-  }
-  
-  void step()
-  {
-    int x, y;
-    for(int x = 0; x < height; x++) {
-      for(int y = 0; y < width; y++) {
-	neighbors[x][y] = 0;
-      }
-    }
+PortOut display_port(PortE, 0x0000ffbc);
+Thread thread(osPriorityRealtime);
 
-    for(uint16_t x0 = 0; x0 < height; x0++) {
-      for(uint16_t y0 = 0; y0 < width; y0++) {
-	if(game_field[x0][y0] == 1) {
-	  x = x0 + height;
-	  y = y0 + width;
-	  neighbors[(x+1)%height][y%width] += 1;
-	  neighbors[(x+1)%height][(y+1)%width] += 1;
-	  neighbors[(x+1)%height][(y-1)%width] += 1;
-	  neighbors[x%height][(y+1)%width] += 1;
-	  neighbors[x%height][(y-1)%width] += 1;
-	  neighbors[(x-1)%height][y%width] += 1;
-	  neighbors[(x-1)%height][(y+1)%width] += 1;
-	  neighbors[(x-1)%height][(y-1)%width] += 1;
-	}
-      }
-    }
+uint16_t buffer[Width*Height*Tints];
+
+void hook(void) {
+  uint32_t out;
+  for(;;) {
+    uint32_t index = 0;
     
-    for(int x = 0; x < height; x++) {
-      for(int y = 0; y < width; y++) {
-	if(neighbors[x][y] == 3) {
-	  game_field[x][y] = 1;  
-	} else if (neighbors[x][y] == 2) {
-	  continue;
-	} else {
-	  game_field[x][y] = 0;
+    for(uint32_t tint = 0; tint < Tints; ++tint) {
+      for(uint32_t row = 0; row < Height; ++row) {
+	out = 0;
+	for(uint32_t col = 0; col < Width; ++col, ++index) {
+	  out = buffer[index];
+	  out |= E_pin;
+	  display_port = out;
+	  
+	  out |= S_pin;
+	  display_port = out;
 	}
+	
+	out |= L_pin;
+	display_port = out;
+	
+	out &= ~L_pin;
+	display_port = out;
+	
+	out |= (row << 2);
+	
+	display_port = out;
+	
+	out &= ~E_pin;
+	display_port = out;
+	
+	wait_us(LightingTime);
+	
+	out |= E_pin;
+	display_port = out;
       }
     }
   }
+}
 
-  void draw(Display *display) {
-    for(int x = 0; x < height; x++) {
-      for(int y = 0; y < width; y++) {
-	if(game_field[x][y] == 1){
-	  display->set_pixel64x64(x,y, x % 7+1, 7 - y%7, 0);
-	} else {
-	  display->set_pixel64x64(x,y,0,0,0);
-	}
-      }
-    }   
-  }
-};
-
-Game game;
-Display display;
 
 int main() {
-  int t = 0;
-  // display.start();
-  display.clear();
-  for(int i = 0; i < 64; i++) {
-    for(int j = 0; j < 64; j++) {
-      display.set_pixel64x64(i,j,7,7,7);
+  uint32_t val;
+
+  for(uint32_t tints = 0; tints < Tints; ++tints) {
+    uint32_t index;
+
+    if(tints == 0) {
+      val = R1_pin | G1_pin;
+    } else {
+      val = R2_pin | B2_pin;
+    }
+
+    index = tints*Width*Height;
+    for(uint32_t t = 0; t < Width*Height; ++t, ++index) {
+      buffer[index] = val;
     }
   }
-  while(true) {
-    display.draw();
-    // for(int i = 0; i < 400; i++){
-    //   game.draw(&display);
-    //   display.draw();
-    //   //   wait_ms(10);
-    //   game.step();
-    // }
-    // game.game_field[10][10] = 1;
-    // game.game_field[10][11] = 1;
-    // game.game_field[10][12] = 1;
-    // game.game_field[11][12] = 1;
-    // game.game_field[12][11] = 1;
+
+  //hook();
+  thread.start(callback(hook));
+
+  for(val = 1;;val++) {
+    //       port = (val & 0x1);
   }
 }
