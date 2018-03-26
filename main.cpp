@@ -4,6 +4,13 @@
 #include "rtos.h"
 #include "fonts/homespun_font.h"
 
+#define R1_pin_shift  8
+#define G1_pin_shift  7
+#define B1_pin_shift  10
+#define R2_pin_shift  12
+#define G2_pin_shift  14
+#define B2_pin_shift  15
+
 #define A_pin   0x00000004
 #define B_pin   0x00000008
 #define C_pin   0x00000010
@@ -18,12 +25,11 @@
 #define L_pin   0x00000800
 #define E_pin   0x00000200
 
-#define LightingTime        200       // us
-#define WaitBeetweenFrames  2000     // us
+#define LightingTime        130       // 135 успевает залить строку
+#define WaitBeetweenFrames  1000     // us
 #define WidthPanel          4*64
 #define HeightPanel         16
 #define Tints               4
-
 
 PortOut display_port(PortE, 0x0000ffbc);
 Thread thread(osPriorityRealtime);
@@ -31,7 +37,6 @@ Timeout light_off_timeout;
 
 uint8_t DisplayBuffer[HeightPanel][WidthPanel]; //x x b2 g2 r2 b1 g1 r1
 volatile bool LatchReady = true;
-volatile uint32_t output = E_pin;
 
 void draw_text(uint32_t col, uint32_t row, string text);
 
@@ -47,6 +52,7 @@ void light_off_hook() {
 
 void hook(void) {
   uint32_t counter = 0;
+  uint32_t output = E_pin;
 
   counter = 0;
   for(int frame_number = 0;;frame_number++) {
@@ -54,10 +60,11 @@ void hook(void) {
     index = 0;
     for(size_t row = 0; row < HeightPanel; ++row) {
       for(size_t col = 0; col < WidthPanel; ++col, ++index) {
-	uint8_t val;
+	uint32_t val;
 	val = DisplayBuffer[row][col];
 	
-	output &= ~(R1_pin | R2_pin | G1_pin | G2_pin | B1_pin | B2_pin);
+	output &= ~(R1_pin | G1_pin | B1_pin | R2_pin | G2_pin | B2_pin);
+
 	output |= val & 0x01 ? R1_pin : 0;
 	output |= val & 0x02 ? G1_pin : 0;
 	output |= val & 0x04 ? B1_pin : 0;
@@ -108,6 +115,7 @@ void hook(void) {
       sprintf(buf, "%ld", counter);
       draw_text(10,10,buf);
     }
+    wait_us(WaitBeetweenFrames);
   }
 }
 
@@ -203,17 +211,17 @@ void rect(int left, int top, int right, int bottom, int r, int g, int b) {
 int main() {
   uint32_t val;
 
-  hook();
+  //hook();
   
-  //  thread.start(hook);
+  thread.start(hook);
   
   val = 0;
   while(true){
     char buf[10];
     sprintf(buf, "%ld", val);
-    draw_text(10,10,buf);
+    draw_text(10,50,buf);
     //    wait_ms(100);
-    rect(0,10,40,20,0,0,0);
+    rect(64,10,80,30,1,1,1);
     
     //    clear_display();
     val++;
