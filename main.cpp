@@ -4,28 +4,40 @@
 #include "rtos.h"
 #include "fonts/homespun_font.h"
 
-#define R1_pin_shift  8
-#define G1_pin_shift  7
-#define B1_pin_shift  10
-#define R2_pin_shift  12
-#define G2_pin_shift  14
-#define B2_pin_shift  15
+#define R1_pin_shift  2
+#define G1_pin_shift  3
+#define B1_pin_shift  4
+#define R2_pin_shift  5
+#define G2_pin_shift  6
+#define B2_pin_shift  7
 
-#define A_pin   0x00000004
-#define B_pin   0x00000008
-#define C_pin   0x00000010
-#define D_pin   0x00000020
-#define R1_pin  0x00000100
-#define G1_pin  0x00000080
-#define B1_pin  0x00000400
-#define R2_pin  0x00001000
-#define G2_pin  0x00004000
-#define B2_pin  0x00008000
-#define S_pin   0x00002000
-#define L_pin   0x00000800
-#define E_pin   0x00000200
+#define A_pin_shift   8
+#define B_pin_shift   10
+#define C_pin_shift   12
+#define D_pin_shift   14
 
-#define LightingTime        130       // 135 успевает залить строку
+#define L_pin_shift   11
+#define S_pin_shift   13
+#define E_pin_shift   9
+
+
+#define R1_pin  (0x1 << R1_pin_shift)  
+#define G1_pin	(0x1 << G1_pin_shift)
+#define B1_pin	(0x1 << B1_pin_shift)
+#define R2_pin	(0x1 << R2_pin_shift)
+#define G2_pin	(0x1 << G2_pin_shift)
+#define B2_pin	(0x1 << B2_pin_shift)
+
+#define A_pin 	(0x1 << A_pin_shift) 
+#define B_pin 	(0x1 << B_pin_shift) 
+#define C_pin 	(0x1 << C_pin_shift) 
+#define D_pin 	(0x1 << D_pin_shift) 
+
+#define L_pin 	(0x1 << L_pin_shift) 
+#define S_pin 	(0x1 << S_pin_shift) 
+#define E_pin 	(0x1 << E_pin_shift) 
+
+#define LightingTime        100       // 83 успевает залить строку
 #define WaitBeetweenFrames  1000     // us
 #define WidthPanel          4*64
 #define HeightPanel         16
@@ -50,38 +62,35 @@ void light_off_hook() {
   LatchReady = true;
 }
 
+inline void light_off(uint32_t *output) {
+  *output |= E_pin;
+  display_port = *output;
+}
+
 void hook(void) {
   uint32_t counter = 0;
   uint32_t output = E_pin;
 
   counter = 0;
   for(int frame_number = 0;;frame_number++) {
-    size_t index;
-    index = 0;
     for(size_t row = 0; row < HeightPanel; ++row) {
-      for(size_t col = 0; col < WidthPanel; ++col, ++index) {
-	uint32_t val;
-	val = DisplayBuffer[row][col];
-	
-	output &= ~(R1_pin | G1_pin | B1_pin | R2_pin | G2_pin | B2_pin);
-
-	output |= val & 0x01 ? R1_pin : 0;
-	output |= val & 0x02 ? G1_pin : 0;
-	output |= val & 0x04 ? B1_pin : 0;
-	output |= val & 0x08 ? R2_pin : 0;
-	output |= val & 0x10 ? G2_pin : 0;
-	output |= val & 0x20 ? B2_pin : 0;
-	
-	output &= ~S_pin;
-	display_port = output;
-	
-	output |= S_pin;
-	display_port = output;
-
-	if(LatchReady) {
-	  output |= E_pin;
+      for(size_t col = 0; col < WidthPanel;++col) {
+	  uint8_t val;
+	  val = DisplayBuffer[row][col];
+	  
+	  output &= ~(R1_pin | G1_pin | B1_pin | R2_pin | G2_pin | B2_pin);
+	  
+	  output |= val;
+	  
+	  output &= ~S_pin;
 	  display_port = output;
-	}
+	  
+	  output |= S_pin;
+	  display_port = output;
+	  
+	  if(LatchReady) {
+	    light_off(&output);
+	  }
       }
       
       output &= ~S_pin;
@@ -90,8 +99,7 @@ void hook(void) {
 	counter++;
       }
       
-      output |= E_pin;
-      display_port = output;
+      light_off(&output);
       
       output |= L_pin;
       display_port = output;
@@ -100,7 +108,10 @@ void hook(void) {
       display_port = output;
       
       output &= ~(A_pin | B_pin | C_pin | D_pin);
-      output |= (row << 2);
+      output |= row & 0x1 ? A_pin : 0;
+      output |= row & 0x2 ? B_pin : 0;
+      output |= row & 0x4 ? C_pin : 0;
+      output |= row & 0x8 ? D_pin : 0;
       
       display_port = output;
       
@@ -110,11 +121,15 @@ void hook(void) {
       LatchReady = false;
       light_off_timeout.attach_us(&light_off_hook, LightingTime);
     }
-    if(frame_number == 100){
+    if(frame_number == 0){
       char buf[10];
       sprintf(buf, "%ld", counter);
       draw_text(10,10,buf);
     }
+    for(;!LatchReady;) {
+      counter++;
+    }
+    light_off(&output);
     wait_us(WaitBeetweenFrames);
   }
 }
@@ -127,11 +142,11 @@ inline void __set_pixel__(uint32_t col, uint32_t row, int r, int g, int b){
 
   
   if(row < 16) {
-    mask = 7*8;
-    shift = 0;
+    mask = 7*32;
+    shift = 2;
   } else {
-    mask = 7;
-    shift = 3;
+    mask = 7*4;
+    shift = 5;
     row -= 16;
   }
 
@@ -220,8 +235,11 @@ int main() {
     char buf[10];
     sprintf(buf, "%ld", val);
     draw_text(10,50,buf);
-    //    wait_ms(100);
-    rect(64,10,80,30,1,1,1);
+    set_pixel(100, val, 0, 0, 1);
+    //    wait_ms(500);
+    set_pixel(100, val, 0, 0, 0);
+    rect(100,0,127,63,0,1,0);
+
     
     //    clear_display();
     val++;
