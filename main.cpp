@@ -18,94 +18,122 @@
 #define L_pin   0x00000800
 #define E_pin   0x00000200
 
-#define LightingTime        20       // us
+#define LightingTime        200       // us
 #define WaitBeetweenFrames  2000     // us
-#define Width               4*64
-#define Height              16
+#define WidthPanel          4*64
+#define HeightPanel         16
 #define Tints               4
 
 
 PortOut display_port(PortE, 0x0000ffbc);
 Thread thread(osPriorityRealtime);
+Timeout light_off_timeout;
 
-uint16_t DisplayBuffer[Width*Height*Tints];
+uint8_t DisplayBuffer[HeightPanel][WidthPanel]; //x x b2 g2 r2 b1 g1 r1
+volatile bool LatchReady = true;
+volatile uint32_t output = E_pin;
 
-void hook(void) {
-  uint32_t out;
-  for(;;) {
-    uint32_t index = 0;
-    
-    for(uint32_t tint = 0; tint < Tints; ++tint) {
-      for(uint32_t row = 0; row < Height; ++row) {
-	out = 0;
-	for(uint32_t col = 0; col < Width; col++, ++index) {
-	  uint32_t val;
-	  out = DisplayBuffer[index];
-	  out |= E_pin;
-	  display_port = out;
+void draw_text(uint32_t col, uint32_t row, string text);
 
-	  out |= S_pin;
-	  display_port = out;
-	}
-	
-	out |= L_pin;
-	display_port = out;
-	
-	out &= ~L_pin;
-	display_port = out;
-	
-	out |= (row << 2);
-	
-	display_port = out;
-	
-	out &= ~E_pin;
-	display_port = out;
-	
-	wait_us(LightingTime);
-	
-	out |= E_pin;
-	display_port = out;
-      }
-    }
-    wait_us(1000);
-  }
-  
+void draw_text(uint32_t col, uint32_t row, char* text, size_t length);
+
+void clear_display();
+
+void rect(int left, int top, int right, int bottom, int r, int g, int b);
+
+void light_off_hook() {
+  LatchReady = true;
 }
 
-inline void __set_pixel__(uint32_t row, uint32_t col, int r, int g, int b){
-  uint16_t r_pin, g_pin, b_pin;
-  uint16_t mask;
+void hook(void) {
+  uint32_t counter = 0;
 
+  counter = 0;
+  for(int frame_number = 0;;frame_number++) {
+    size_t index;
+    index = 0;
+    for(size_t row = 0; row < HeightPanel; ++row) {
+      for(size_t col = 0; col < WidthPanel; ++col, ++index) {
+	uint8_t val;
+	val = DisplayBuffer[row][col];
+	
+	output &= ~(R1_pin | R2_pin | G1_pin | G2_pin | B1_pin | B2_pin);
+	output |= val & 0x01 ? R1_pin : 0;
+	output |= val & 0x02 ? G1_pin : 0;
+	output |= val & 0x04 ? B1_pin : 0;
+	output |= val & 0x08 ? R2_pin : 0;
+	output |= val & 0x10 ? G2_pin : 0;
+	output |= val & 0x20 ? B2_pin : 0;
+	
+	output &= ~S_pin;
+	display_port = output;
+	
+	output |= S_pin;
+	display_port = output;
+
+	if(LatchReady) {
+	  output |= E_pin;
+	  display_port = output;
+	}
+      }
+      
+      output &= ~S_pin;
+      
+      for(;!LatchReady;) {
+	counter++;
+      }
+      
+      output |= E_pin;
+      display_port = output;
+      
+      output |= L_pin;
+      display_port = output;
+      
+      output &= ~L_pin;
+      display_port = output;
+      
+      output &= ~(A_pin | B_pin | C_pin | D_pin);
+      output |= (row << 2);
+      
+      display_port = output;
+      
+      output &= ~E_pin;
+      display_port = output;
+      
+      LatchReady = false;
+      light_off_timeout.attach_us(&light_off_hook, LightingTime);
+    }
+    if(frame_number == 100){
+      char buf[10];
+      sprintf(buf, "%ld", counter);
+      draw_text(10,10,buf);
+    }
+  }
+}
+
+
+inline void __set_pixel__(uint32_t col, uint32_t row, int r, int g, int b){
+  uint8_t mask;
+  uint8_t val;
+  int shift;
+
+  
   if(row < 16) {
-    r_pin = R1_pin;
-    g_pin = G1_pin;
-    b_pin = B1_pin;
+    mask = 7*8;
+    shift = 0;
   } else {
-    r_pin = R2_pin;
-    g_pin = G2_pin;
-    b_pin = B2_pin;
+    mask = 7;
+    shift = 3;
     row -= 16;
   }
 
-  mask = ~(r_pin | g_pin | b_pin);
-
-  for(int i = 0; i < Tints; ++i) {
-    uint16_t val;
-    val = DisplayBuffer[row*Width + col + i*Width*Height];
-    val &= mask;
-    val |= r > 0 ? r_pin : 0;
-    val |= g > 0 ? g_pin : 0;
-    val |= b > 0 ? b_pin : 0;
-    r--;
-    g--;
-    b--;
-    DisplayBuffer[row*Width + col + i*Width*Height] = val;
-  }
+  val = DisplayBuffer[row][col];
+  val &= mask;
+  val |= r > 0 ? (0x1 << shift) : 0;
+  val |= g > 0 ? (0x2 << shift) : 0;
+  val |= b > 0 ? (0x4 << shift) : 0;
+  DisplayBuffer[row][col] = val;
 }
-
-/* row must be >= 0 and < 64. col >= 0 and < 128
- 
-*/
 
 inline void set_pixel(uint32_t col, uint32_t row, int r, int g, int b) {
   row &= 63;
@@ -119,7 +147,7 @@ inline void set_pixel(uint32_t col, uint32_t row, int r, int g, int b) {
     col += 128;
   }
 
-  __set_pixel__(row, col, r, g, b);
+  __set_pixel__(col, row, r, g, b);
 }
 
 inline int draw_letter(uint32_t col, uint32_t row, char letter) {
@@ -170,21 +198,62 @@ void rect(int left, int top, int right, int bottom, int r, int g, int b) {
   }
 }
 
+
+
 int main() {
   uint32_t val;
+
+  hook();
   
-  //hook();
-  thread.start(hook);
+  //  thread.start(hook);
   
   val = 0;
   while(true){
     char buf[10];
     sprintf(buf, "%ld", val);
     draw_text(10,10,buf);
-    wait_ms(100);
+    //    wait_ms(100);
     rect(0,10,40,20,0,0,0);
     
     //    clear_display();
     val++;
   }
 }
+
+
+
+// inline void __set_pixel__(uint32_t row, uint32_t col, int r, int g, int b){
+//   uint16_t r_pin, g_pin, b_pin;
+//   uint16_t mask;
+
+//   if(row < 16) {
+//     r_pin = R1_pin;
+//     g_pin = G1_pin;
+//     b_pin = B1_pin;
+//   } else {
+//     r_pin = R2_pin;
+//     g_pin = G2_pin;
+//     b_pin = B2_pin;
+//     row -= 16;
+//   }
+
+//   mask = ~(r_pin | g_pin | b_pin);
+
+//   for(int i = 0; i < Tints; ++i) {
+//     uint16_t val;
+//     val = DisplayBuffer[row*Width + col + i*Width*Height];
+//     val &= mask;
+//     val |= r > 0 ? r_pin : 0;
+//     val |= g > 0 ? g_pin : 0;
+//     val |= b > 0 ? b_pin : 0;
+//     r--;
+//     g--;
+//     b--;
+//     DisplayBuffer[row*Width + col + i*Width*Height] = val;
+//   }
+// }
+
+// /* row must be >= 0 and < 64. col >= 0 and < 128
+ 
+// */
+
