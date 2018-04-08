@@ -115,8 +115,8 @@ void hook(void) {
 	LatchReady = false;
 	light_off_timeout.attach_us(&light_off_hook, LightingTime*(0x1 << depth));
 
-	for(;!LatchReady;) {
-	  counter++;
+	// for(;!LatchReady;) {
+	//   counter++;
 	}
       }
     }
@@ -249,40 +249,3 @@ int main() {
   }
 }
  
- 
- 
-// inline void __set_pixel__(uint32_t row, uint32_t col, int r, int g, int b){
-//   uint16_t r_pin, g_pin, b_pin;
-//   uint16_t mask;
-
-//   if(row < 16) {
-//     r_pin = R1_pin;
-//     g_pin = G1_pin;
-//     b_pin = B1_pin;
-//   } else {
-//     r_pin = R2_pin;
-//     g_pin = G2_pin;
-//     b_pin = B2_pin;
-//     row -= 16;
-//   }
-
-//   mask = ~(r_pin | g_pin | b_pin);
-
-//   for(int i = 0; i < Tints; ++i) {
-//     uint16_t val;
-//     val = DisplayBuffer[row*Width + col + i*Width*Height];
-//     val &= mask;
-//     val |= r > 0 ? r_pin : 0;
-//     val |= g > 0 ? g_pin : 0;
-//     val |= b > 0 ? b_pin : 0;
-//     r--;
-//     g--;
-//     b--;
-//     DisplayBuffer[row*Width + col + i*Width*Height] = val;
-//   }
-// }
-
-// /* row must be >= 0 and < 64. col >= 0 and < 128
- 
-// */
-
