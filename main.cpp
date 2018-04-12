@@ -1,8 +1,9 @@
 #include "mbed.h"
 #include <vector>
-#include <string>
 #include "rtos.h"
+#include "fonts.h"
 #include "fonts/homespun_font.h"
+#include <string>
 
 #define R1_pin_shift  2
 #define G1_pin_shift  3
@@ -51,7 +52,11 @@ Thread thread(osPriorityRealtime);
 
 Timeout light_off_timeout;
 
-uint8_t DisplayBuffer[HeightPanel][ColorDepth][WidthPanel];
+uint8_t DisplayBuffer1[HeightPanel*ColorDepth*WidthPanel];
+uint8_t DisplayBuffer2[HeightPanel*ColorDepth*WidthPanel];
+
+uint8_t *CycleReadBuffer = DisplayBuffer1;
+uint8_t *DrawingBuffer = DisplayBuffer2;
 
 volatile bool LatchReady = true;
 
@@ -68,16 +73,24 @@ void light_off_hook() {
   E_Pin_Port = 1;
 }
 
+void swap_buffer() {
+  uint8_t *temp = CycleReadBuffer;
+  CycleReadBuffer = DrawingBuffer;
+  DrawingBuffer = temp;
+}
+
+inline int buffer_shift(int row, int depth, int col) {
+  return col + WidthPanel*depth + ColorDepth*WidthPanel*row;
+}
+
 void hook(void) {
-  uint32_t counter = 0;
   uint32_t output = 0;
 
-  counter = 0;
   for(;;) {
     for(size_t row = 0; row < HeightPanel; ++row) {
       for(size_t depth = 0; depth < ColorDepth; ++depth) {
 	for(size_t col = 0; col < WidthPanel;++col) {
-	  uint16_t val = DisplayBuffer[row][depth][col];
+	  uint16_t val = CycleReadBuffer[buffer_shift(row, depth, col)];
 	  
 	  output &= ~(R1_pin | G1_pin | B1_pin | R2_pin | G2_pin | B2_pin);
 	  
@@ -92,9 +105,7 @@ void hook(void) {
       
 	output &= ~S_pin;
       
-	for(;!LatchReady;) {
-	  counter++;
-	}
+	for(;!LatchReady;) { }
       
 	output |= L_pin;
 	display_port = output;
@@ -114,10 +125,6 @@ void hook(void) {
 
 	LatchReady = false;
 	light_off_timeout.attach_us(&light_off_hook, LightingTime*(0x1 << depth));
-
-	// for(;!LatchReady;) {
-	//   counter++;
-	}
       }
     }
     wait_us(WaitBeetweenFrames);
@@ -146,13 +153,13 @@ inline void __set_pixel__(uint32_t col, uint32_t row, uint32_t r, uint32_t g, ui
   }
 
   for(size_t depth = 0; depth < ColorDepth; ++depth){
-    val = DisplayBuffer[row][depth][col];
+    val = DrawingBuffer[buffer_shift(row, depth, col)];
     val &= mask;
     
     val |= r & 0x1 ? r_bit : 0;
     val |= g & 0x1 ? g_bit : 0;
     val |= b & 0x1 ? b_bit : 0;
-    DisplayBuffer[row][depth][col] = val;
+    DrawingBuffer[buffer_shift(row, depth, col)] = val;
 
     r >>= 1;
     g >>= 1;
@@ -173,6 +180,37 @@ inline void set_pixel(uint32_t col, uint32_t row, uint32_t r, uint32_t g, uint32
   }
 
   __set_pixel__(col, row, r, g, b);
+}
+
+inline void draw_bitmap(int right_col, int bottom_row, Bitmap bitmap, const int red, const int green, const int blue) {
+  int index = 0;
+
+  for(int h = 0; h < bitmap.height; h++) {
+    int y = bottom_row - h;
+    int x = 0;
+    
+    for(int b = 0; b < bitmap.byte_width; b++) {
+      unsigned char byte = bitmap.data[index];
+
+      for(int p = 0; p < 8 && x < bitmap.width; p++, x++){
+	if (byte & 0x1) {
+	  set_pixel(right_col-x, y, red, green, blue);
+	} else {
+	  set_pixel(right_col-x, y, 0, 0, 0);
+	}
+	byte >>= 1;
+      }
+      index++;
+    }
+  }
+}
+
+inline void draw_bitmap_sequence(int right, int bottom, Bitmap *fonts, int *idx, int size, int r, int g, int b) {
+  for(int i = 0; i < size; i++) {
+    Bitmap bitmap = fonts[idx[i]];
+    draw_bitmap(right, bottom, bitmap, r, g, b);
+    right -= bitmap.width + 2;
+  }
 }
 
 inline int draw_letter(uint32_t col, uint32_t row, char letter, uint32_t r, uint32_t g, uint32_t b) {
@@ -208,10 +246,8 @@ void draw_text(uint32_t col, uint32_t row, char* text, size_t length, uint32_t r
 }
 
 void clear_display() {
-  for(int row = 0; row < 64; row++) {
-    for(int col = 0; col < 128; col++) {
-      set_pixel(col, row, 0,0,0);
-    }
+  for(int i = 0; i < HeightPanel*ColorDepth*WidthPanel; i++) {
+    DrawingBuffer[i] = 0;
   }
 }
 
@@ -223,6 +259,39 @@ void rect(int left, int top, int right, int bottom, int r, int g, int b) {
   }
 }
 
+// TODO max_len > 2
+int decimal_decomposition(unsigned int value, int max_len, int *buffer) {
+  int i;
+  buffer[0] = 10;
+
+  if (value == 0) {
+    buffer[1] = 0;
+    return 2;
+  }
+  
+  for(i = 1; i < max_len && value != 0; i++) {
+    buffer[i] = value % 10;
+    value /= 10;
+  }
+
+  return i;
+}
+
+void draw_frame(unsigned int speed, unsigned int battery, unsigned int minutes) {
+  const int buffer_length = 5;
+  int buffer[buffer_length];
+  int len;
+
+  len = decimal_decomposition(speed, buffer_length, buffer);
+  draw_bitmap_sequence(123, 56, font3, buffer, len, 15, 15, 15);
+
+  len = decimal_decomposition(battery, buffer_length, buffer);
+  draw_bitmap_sequence(47, 18, font1, buffer, len, 15, 15, 15);
+
+  len = decimal_decomposition(minutes, buffer_length, buffer);
+  draw_bitmap_sequence(124, 22, font2, buffer, len, 15, 15, 15);
+}
+
 int main() {
   uint32_t val;
   
@@ -231,20 +300,10 @@ int main() {
   
   val = 0;
   while(true){
-    char buf[10];
-    
-    sprintf(buf, "%ld", val);
-    int x = 10 + val;
-    int y = 50 + val/2;
-    draw_text(x, y, buf, val/100, val/110, val/120);
-    wait_ms(40);
-    rect(x, y, x+50, y+10, 0, 0, 0);
-
-    //    set_pixel(100, val, 0, 0, 1);
-    //    wait_ms(500);
-    //    set_pixel(100, val, 0, 0, 0);
-    
-    //    clear_display();
+    clear_display();
+    draw_frame(val, 100, 34);
+    swap_buffer();
+    wait_ms(1000);
     val++;
   }
 }
