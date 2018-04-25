@@ -47,7 +47,6 @@ PROJECT := conway_game
 # Objects and Paths
 
 OBJECTS += main.o
-OBJECTS += display.o
 OBJECTS += mbed-os/drivers/AnalogIn.o
 OBJECTS += mbed-os/drivers/BusIn.o
 OBJECTS += mbed-os/drivers/BusInOut.o
