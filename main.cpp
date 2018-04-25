@@ -5,15 +5,12 @@
 #include "fonts/homespun_font.h"
 #include <string>
 
-#define R1_pin_shift  2
-#define G1_pin_shift  3
+#define R1_pin_shift  2     // Номер порта у R1
+#define G1_pin_shift  3     // Номер порта у G1
 #define B1_pin_shift  4
 #define R2_pin_shift  5
 #define G2_pin_shift  7 
 #define B2_pin_shift  8
-
-// b2 g2 x r2 b1 g1 r1
-
 
 #define A_pin_shift   9
 #define B_pin_shift   10
@@ -23,8 +20,8 @@
 #define L_pin_shift   11
 #define S_pin_shift   13
 
-#define R1_pin  (0x1 << R1_pin_shift)  
-#define G1_pin	(0x1 << G1_pin_shift)
+#define R1_pin  (0x1 << R1_pin_shift)  // Бит порта для R1
+#define G1_pin	(0x1 << G1_pin_shift)  // Бит порта для G1
 #define B1_pin	(0x1 << B1_pin_shift)
 #define R2_pin	(0x1 << R2_pin_shift)
 #define G2_pin	(0x1 << G2_pin_shift)
@@ -38,15 +35,15 @@
 #define L_pin 	(0x1 << L_pin_shift) 
 #define S_pin 	(0x1 << S_pin_shift) 
 
-#define LightingTime        10        // 83 успевает залить строку
-#define WaitBeetweenFrames  1000     // us
-#define WidthPanel          4*64
-#define HeightPanel         16
-#define ColorDepth          4
+#define LightingTime        150     // Минимальное время свечения строки.
+#define WaitBeetweenFrames  1000    // Время ожидания между двумя кадрами. Это минимальное время, при котором вторая задача получает управление.
+#define WidthPanel          4*64    // Ширина ассоциированного с панелью буффера
+#define HeightPanel         16      // Его высота
+#define ColorDepth          3       // Глубина цвета в битах
   
 DigitalOut    E_Pin_Port(D7);
 
-PortOut display_port(PortE, 0x0000ffbc);
+PortOut display_port(PortE, 0x0000ffbc);  // Все линии дисплея кроме Enable идут на порт E.
 
 Thread thread(osPriorityRealtime);
 
@@ -282,14 +279,17 @@ void draw_frame(unsigned int speed, unsigned int battery, unsigned int minutes) 
   int buffer[buffer_length];
   int len;
 
+  // TODO. Максимальное значение цвета сейчас зависит от ColorDepth. К сожалению при изменении ColorDepth надо менять и значения цветов
+  // Стоит сделать цвет float-ом, где 1.0 - это максимальная яркость, а 0.0 - черный цвет
+
   len = decimal_decomposition(speed, buffer_length, buffer);
-  draw_bitmap_sequence(123, 56, font3, buffer, len, 15, 15, 15);
+  draw_bitmap_sequence(123, 56, font3, buffer, len, 0, 7, 0);
 
   len = decimal_decomposition(battery, buffer_length, buffer);
-  draw_bitmap_sequence(47, 18, font1, buffer, len, 15, 15, 15);
+  draw_bitmap_sequence(47, 18, font1, buffer, len, 15, 15*battery/100, 15*battery/100);
 
   len = decimal_decomposition(minutes, buffer_length, buffer);
-  draw_bitmap_sequence(124, 22, font2, buffer, len, 15, 15, 15);
+  draw_bitmap_sequence(124, 22, font2, buffer, len, 7, 7, 0);
 }
 
 int main() {
@@ -301,7 +301,7 @@ int main() {
   val = 0;
   while(true){
     clear_display();
-    draw_frame(val, 100, 34);
+    draw_frame(val, 35, 34);
     swap_buffer();
     wait_ms(1000);
     val++;
